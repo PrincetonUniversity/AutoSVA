@@ -1,0 +1,7 @@
+<ADD RTL FILE EXTENSIONS>
+<INCLUDE>${DUT_PATH}
+<INCLUDE> ${SRC_PATH0}
+<INCLUDE>${INC_PATH}
+${PROP_PATH}/ptw_prop.sv
+${PROP_PATH}/ptw_bind.svh
+${DUT_ROOT}/src/ptw.sv

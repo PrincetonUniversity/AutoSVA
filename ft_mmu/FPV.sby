@@ -1,0 +1,35 @@
+[tasks]
+cvr
+prv
+[options]
+cvr: mode cover
+prv: mode prove
+[engines]
+cvr: smtbmc z3
+prv: abc pdr
+[script]
+read -verific
+read -sv riscv_pkg.sv
+read -sv dm_pkg.sv
+read -sv ariane_pkg.sv
+read -sv ptw.sv
+read -sv ptw_prop.sv
+read -sv ptw_bind.svh
+read -sv tlb.sv
+read -sv mmu.sv
+read -sv mmu_prop.sv
+read -sv mmu_bind.svh
+prep -top mmu
+
+[files]
+${AUTOSVA_ROOT}/ft_ptw/sva/ptw_prop.sv
+${AUTOSVA_ROOT}/ft_ptw/sva/ptw_bind.svh
+$AUTOSVA_ROOT/ft_mmu/sva/mmu_prop.sv
+$AUTOSVA_ROOT/ft_mmu/sva/mmu_bind.svh
+$DUT_ROOT/src/ptw.sv
+$DUT_ROOT/src/tlb.sv
+$DUT_ROOT/src/mmu.sv
+
+$DUT_ROOT/include/riscv_pkg.sv
+$DUT_ROOT/src/riscv-dbg/src/dm_pkg.sv
+$DUT_ROOT/include/ariane_pkg.sv

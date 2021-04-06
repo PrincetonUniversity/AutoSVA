@@ -1,0 +1,9 @@
+<ADD RTL FILE EXTENSIONS>
+<INCLUDE>${DUT_PATH}
+<INCLUDE> ${SRC_PATH0}
+<INCLUDE>${INC_PATH}
+${PROP_PATH}/mmu_prop.sv
+${PROP_PATH}/mmu_bind.svh
+${AUTOSVA_ROOT}/ft_ptw/sva/ptw_prop.sv
+${AUTOSVA_ROOT}/ft_ptw/sva/ptw_bind.svh
+${DUT_ROOT}/src/mmu.sv
