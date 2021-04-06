@@ -2,8 +2,8 @@
 # OF JASPERGOLD ONCE YOU ADQUIRE A LICENSE AND HAVE ACCESS TO THE TOOL DOCUMENTATION
 
 # Set paths to DUT root and FT root (edit if needed)
-set DUT_ROOT /tigress/movera/exp/2ariane
-set AUTOSVA_ROOT /tigress/movera/exp/AutoSVA/ft_tlb/..
+set DUT_ROOT <YOUR PATH TO ARIANE>
+set AUTOSVA_ROOT <YOUR PATH TO AutoSVA>/AutoSVA/ft_tlb/..
 
 # Analyze design under verification files (no edit)
 set DUT_PATH ${DUT_ROOT}/src/

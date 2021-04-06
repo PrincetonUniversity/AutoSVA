@@ -42,7 +42,7 @@ A) When SBY is elaborating the project, if it complains about any RTL submodule 
 
 B) Alternatively, you can add blackbox <submodule> for those submodule if you want to blackbox them
 
-C) If the RTL needs some defines to be set, do so also by appending "read -define <NAME>=1" after read -verific
+C) If the RTL needs some defines to be set, do so also by appending "read -define <NAME>=1" after "read -verific"
 
 ## Reproduce Results at Ariane
 
@@ -61,8 +61,9 @@ Python version 2 or superior
     git submodule update --init --recursive --force src
     cd ..
 
-    # Set ARIANE_REPO env variable
-    export ARIANE_REPO=$PWD/ariane
+    # Set DUT_ROOT and AUTOSVA_ROOT env variable
+    export DUT_ROOT=$PWD/ariane
+    export AUTOSVA_ROOT=$PWD
 
     # Enter AutoSVA folder and run scripts to update relative Formal Testbenches (FT)
     cd autosva 
