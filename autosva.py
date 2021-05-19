@@ -200,8 +200,7 @@ def parse_annotation(line):
         def_wires.append(wire)
         assign_wires[name]=assign
         if (verbose):  print("Matched wire:" + wire +", assign: "+assign)
-        if name.endswith("data"): parse_signal(wire,"data")
-        else: parse_signal(wire,None)
+        parse_signal(wire+"\n",None)
 
 
     #add implications
@@ -219,7 +218,7 @@ def parse_signal(line, annotation):
     rdy = None
 
     if (verbose):  print("Parsing signal: " + line[:-1])
-    match = re.search("\s*[wire|logic|reg]?\s+(?:\[(.*):0\]\s+)?(\w+)\s*[,;=]\s*(.*)", line)
+    match = re.search("\s*[wire|logic|reg]?\s+(?:\[(.*):0\]\s+)?(\w+)\s*[,;=]?\s*(//.*)?\n", line)
     if match:
         size = match.group(1)
         name = match.group(2)
@@ -258,6 +257,10 @@ def parse_signal(line, annotation):
         # add only if the interface is defined (in implications)
         elif name.endswith("_stable"):
             annotation = "stable"
+        elif name.endswith("_data"):
+            key = name[:-5]
+            if key in handshakes:
+                annotation = "data"
         elif name.endswith("_active"):
             key = name[:-7]
             if key in implications:
@@ -485,15 +488,15 @@ def parse_global(rtl, prop, bind):
             if parsed_disclaimer_sec:
                 prop.write(line)
         else:
-            print("Wrong RTL formal, module header parsed but failed to parse the rest")
-            sys.exit(1)
+            print("Unexpected line after module header parsed")
+            #sys.exit(1)
 
 def gen_vars(tool, prop):
     prop.write("genvar j;\ndefault clocking cb @(posedge " + clk_sig + ");\nendclocking\ndefault disable iff (" + get_reset() + ");\n")
     if tool == "sby":
         prop.write("reg reset_r = 0;\n")
         prop.write("am__rst: assume property (reset_r != "+get_reset()+");\n")
-        prop.write("always_ff @(posedge clk_i)\n")
+        prop.write("always_ff @(posedge "+clk_sig+")\n")
         prop.write("    reset_r <= 1'b1;\n")
     prop.write("\n// Re-defined wires \n")
     # Keep track of the wires already defined for symbolics and handshakes
@@ -510,7 +513,7 @@ def gen_vars(tool, prop):
                 size = trans_id_entry[1]
                 symb_name = "symb_" + entry["p"] + "_" + trans_id_entry[0]
                 if size != "'0" and (not symb_name in def_symb_hsk):
-                    prop.write("wire [" + size + ":0] " + symb_name + " = 'x;\n")
+                    prop.write("wire [" + size + ":0] " + symb_name +";\n")
                     prop.write("am__" + symb_name + "_stable: assume property($stable(" + symb_name + "));\n")
                     def_symb_hsk.append(symb_name)
             elif key == "p" or key == "q":
@@ -597,7 +600,7 @@ def gen_in(prop, name, entry):
             prop.write("as__" + name_tid + "_hsk_or_drop: assert property (" + p + "_val |-> s_eventually(!" + p + "_val || "+handshakes[p]+"));\n")
         # Assert liveness!
         prop.write("// Assert that every request has a response and that every reponse has a request\n")
-        prop.write("as__" + name_tid + "_eventual_response: assert property (" + name_tid + "_set |-> s_eventually(" + q + "_val")
+        prop.write("as__" + name_tid + "_eventual_response: assert property (|" + name_tid + "_sampled |-> s_eventually(" + q + "_val")
         if size != "'0": prop.write(" && (" + q_trans_id + " == " + symb_name + ") ));\n")
         else: prop.write("));\n")
         prop.write("as__" + name_tid + "_was_a_request: assert property (" + name_tid + "_response |-> "+name_tid+"_set || "+name_tid+"_sampled);\n\n")
@@ -655,9 +658,8 @@ def data_integrity(prop, name, p, q, p_trans_id, q_trans_id, p_data, q_data, sym
     prop.write("\t\t" + name + "_data_model <= " + p_data + ";\n")
     prop.write("\tend\n")
     prop.write("end\n\n")
-    
-    prop.write("as__" + name + "_data_integrity: assert property (" + name + "_sampled && " + q + "_hsk ");
-    if size != "'0": prop.write(" && (" +q_trans_id + " == " + symb_name + ")"); 
+    prop.write("as__" + name + "_data_unique: assert property (|" + name + "_sampled |-> !"+name+"_set);\n")
+    prop.write("as__" + name + "_data_integrity: assert property (|" + name + "_sampled && "+name+"_response ");
     prop.write("|-> (" + q_data + " == " + name + "_data_model));\n\n");
 
 def gen_out(prop, name, entry):
