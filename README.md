@@ -1,3 +1,4 @@
+![AutoSVA Logo](/docs/autosva_logo.png?raw=true)
 # AutoSVA
 
 AutoSVA was build with the goal of making Formal Property Verification (FPV) more accesible for hardware designers. AutoSVA brings a simple language to make annotations in the signal declaration section of a module interface. This enables our to generate Formal Testbenches (FT) that check that transactions between hardware RTL modules follow their interface especifications. It does not check full correctness of the design but it automatically generate liveness properties (prevent duplicated responses, prevent requests being dropped) and some safety-relate properties of transactions, like data integrity, transaction invariants, uniqueness, stability... To understand this more fully you can read the pre-print version of our paper at https://arxiv.org/abs/2104.04003. AutoSVA will be publised at the 58th Design and Automation Conference (DAC'21).
