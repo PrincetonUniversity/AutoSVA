@@ -34,25 +34,27 @@ You can set the flag -v to generate the verbose output and see the parsing proce
 
 Once the FT is generated, you can run the FT on SBY like this:
 
-   ./run.sh <DUT_NAME>
+    ./run.sh <DUT_NAME>
 
 ## Troubleshooting
 
 SVA files at the Formal Testbench (FT) are auto-generated every time you execute autosva_py on a DUT_NAME, but manual commands can be added manually to ft_<DUT_NAME>/FPV.sby, for example, to solve the next cases:
 
-A) When SBY is elaborating the project, if it complains about any RTL submodule or include not being found, add its path manually (more info at https://symbiyosys.readthedocs.io/en/latest/)
+A. When SBY is elaborating the project, if it complains about any RTL submodule or include not being found, add its path manually (more info at https://symbiyosys.readthedocs.io/en/latest/)
 
-B) Alternatively, you can add blackbox <submodule> for those submodule if you want to blackbox them
+B. Alternatively, you can add blackbox <submodule> for those submodule if you want to blackbox them
 
-C) If the RTL needs some defines to be set, do so also by appending "read -define <NAME>=1" after "read -verific"
+C. If the RTL needs some defines to be set, do so also by appending "read -define <NAME>=1" after "read -verific"
 
 ## Reproduce Results at Ariane
 
 ### Requirements
 
-SBY with Verific frontend, e.g. provided by yosyshq.com (to run with -tool sby backend)
-JasperGold version 2015.12 or superior (to run with -tool jasper backend)
-Python version 2 or superior
+1. Python version 2 or superior
+2. A formal tool backend (two tools options are currently supported, you **only need one**)
+    * SymbiYosys (SBY) with Verific, e.g. provided by Tabby CAD at www.yosyshq.com (to **run with -tool sby**)
+    * JasperGold version >= 2015.12 (to **run with -tool jg**)
+
 
 ### Commands
 
@@ -75,7 +77,7 @@ Python version 2 or superior
 
 ## Quickstart tutorial. Reproduce the steps.
 The tutorial is 14 minutes and it is available at https://www.youtube.com/watch?v=Gb5wT1D7dxU.
-In the tutorial we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.
+In the tutorial we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. **Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.**
     
 ### Commands used
     export DUT_ROOT=$PWD/quickstart 
