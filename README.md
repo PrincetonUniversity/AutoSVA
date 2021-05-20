@@ -1,5 +1,7 @@
 # AutoSVA
 
+AutoSVA was build with the goal of making Formal Property Verification (FPV) more accesible for hardware designers. AutoSVA brings a simple language to make annotations in the signal declaration section of a module interface. This enables our to generate Formal Testbenches (FT) that check that transactions between hardware RTL modules follow their interface especifications. It does not check full correctness of the design but it automatically generate liveness properties (prevent duplicated responses, prevent requests being dropped) and some safety-relate properties of transactions, like data integrity, transaction invariants, uniqueness, stability... To understand this more fully you can read the pre-print version of our paper at https://arxiv.org/abs/2104.04003. AutoSVA will be publised at the 58th Design and Automation Conference (DAC'21).
+
 ## Script parameters
 
 The AutoSVA tool is based on a Python script, which takes the next arguments
@@ -71,3 +73,30 @@ Python version 2 or superior
     ./run.sh mmu      # lsu_lookup_transid_was_a_request shows the ghost response bug
     
 
+## Quickstart tutorial. Reproduce the steps.
+The tutorial is 14 minutes and it is available at https://www.youtube.com/watch?v=Gb5wT1D7dxU.
+In the tutorial we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.
+    
+### Commands used
+    export DUT_ROOT=$PWD/quickstart 
+    export AUTOSVA_ROOT=$PWD
+    
+ Then we added the following annotations to the fifo.v inside the quickstart folder
+    
+     /*AUTOSVA 
+     fifo: in -IN> out
+     [INFLIGHT_IDX-1:0] in_transid = fifo.buffer_head_r
+     [INFLIGHT_IDX-1:0] out_transid = fifo.buffer_tail_r
+     */
+ 
+ Then we run the autosva tool, what will generate the formal testbench called 'ft_fifo':
+    
+     python autosva.py -f fifo.v -x XPROP -tool sby
+    
+ Then we run the formal property verification tool, in this case SBY. We use the run script to run the fifo FT
+    
+     ./run.sh fifo
+    
+ To watch the waveforms of a Counterexample (CEX) we used 
+    
+     gtkwave ft_fifo/FPV_prv/engine_0/trace.vcd &
