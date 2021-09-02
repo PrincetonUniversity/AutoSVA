@@ -1,7 +1,8 @@
 ![AutoSVA Logo](/docs/autosva_logo.png?raw=true)
 # AutoSVA
 
-AutoSVA was build with the goal of making Formal Property Verification (FPV) more accesible for hardware designers. AutoSVA brings a simple language to make annotations in the signal declaration section of a module interface. This enables our to generate Formal Testbenches (FT) that check that transactions between hardware RTL modules follow their interface especifications. It does not check full correctness of the design but it automatically generate liveness properties (prevent duplicated responses, prevent requests being dropped) and some safety-relate properties of transactions, like data integrity, transaction invariants, uniqueness, stability... To understand this more fully you can read the pre-print version of our paper at https://arxiv.org/abs/2104.04003. AutoSVA will be publised at the 58th Design and Automation Conference (DAC'21).
+AutoSVA was build with the goal of making Formal Property Verification (FPV) more accesible for hardware designers. AutoSVA brings a simple language to make annotations in the signal declaration section of a module interface. This enables our to generate Formal Testbenches (FT) that check that transactions between hardware RTL modules follow their interface especifications. It does not check full correctness of the design but it automatically generate liveness properties (prevent duplicated responses, prevent requests being dropped) and some safety-relate properties of transactions, like data integrity, transaction invariants, uniqueness, stability... To understand this more fully you can read the [pre-print version of our paper](https://arxiv.org/abs/2104.04003). AutoSVA will be publised at the 58th Design and Automation Conference (DAC'21).
+This [3 minute video](https://mediacentral.princeton.edu/media/AutoSVA%3A%20Democratizing%20Formal%20Verification%20of%20Hardware%20Module%20Interactions%2C%20Marcelo%20Vera%2C%20GS%20(2311653)/1_43nlgm4f) summarizes the approach
 
 ## Script parameters
 
@@ -41,7 +42,7 @@ Once the FT is generated, you can run the FT on SBY like this:
 
 SVA files at the Formal Testbench (FT) are auto-generated every time you execute autosva_py on a DUT_NAME, but manual commands can be added manually to ft_<DUT_NAME>/FPV.sby, for example, to solve the next cases:
 
-A. When SBY is elaborating the project, if it complains about any RTL submodule or include not being found, add its path manually (more info at https://symbiyosys.readthedocs.io/en/latest/)
+A. When SBY is elaborating the project, if it complains about any RTL submodule or include not being found, add its path manually (more info at [SymbiYosys ReadTheDocs](https://symbiyosys.readthedocs.io/en/latest/))
 
 B. Alternatively, you can add blackbox <submodule> for those submodule if you want to blackbox them
 
@@ -77,8 +78,7 @@ C. If the RTL needs some defines to be set, do so also by appending "read -defin
     
 
 ## Quickstart tutorial. Reproduce the steps.
-The tutorial is 14 minutes and it is available at https://www.youtube.com/watch?v=Gb5wT1D7dxU.
-In the tutorial we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. **Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.**
+In the [14 minute Youtube tutorial](https://www.youtube.com/watch?v=Gb5wT1D7dxU) we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. **Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.**
     
 ### Commands used
     export DUT_ROOT=$PWD/quickstart 
