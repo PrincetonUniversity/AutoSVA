@@ -1,9 +1,6 @@
-# THIS FILE IS A PLACEHOLDER, WHERE YOU WOULD NEED TO INCLUDE THE RIGHT COMMANDS
-# OF JASPERGOLD ONCE YOU ADQUIRE A LICENSE AND HAVE ACCESS TO THE TOOL DOCUMENTATION
-
 # Set paths to DUT root and FT root (edit if needed)
-set DUT_ROOT <YOUR PATH TO ARIANE>
-set AUTOSVA_ROOT <YOUR PATH TO AutoSVA>/AutoSVA/ft_ptw/..
+set AUTOSVA_ROOT $env(AUTOSVA_ROOT)
+set DUT_ROOT $env(DUT_ROOT)
 
 # Analyze design under verification files (no edit)
 set DUT_PATH ${DUT_ROOT}/src/
@@ -11,15 +8,29 @@ set SRC_PATH0 ${DUT_ROOT}/src/riscv-dbg/src/
 set INC_PATH ${DUT_ROOT}/include
 set PROP_PATH ${AUTOSVA_ROOT}/ft_ptw/sva
 
-# Include property and RTL files
-<USE COMMAND TO INCLUDE FILES AT> ${AUTOSVA_ROOT}/ft_ptw/files.vc
-
-# Build design and properties
-<BUILD USING THIS MODULE AS TOP> ptw
+set_elaborate_single_run_mode off
+set_automatic_library_search on
+set_analyze_libunboundsearch on
+set_analyze_librescan on
+# Analyze property files
+analyze -clear
+analyze -sv12 -f ${AUTOSVA_ROOT}/ft_ptw/files.vc
+# Elaborate design and properties
+elaborate -top ptw -bbox_a 131072 -bbox_mul 128 -bbox_mod 64 -create_related_covers {witness precondition} -auto_hr_info
+#-parameter SOURCES 4
 
 # Set up Clocks and Resets
-<SET CLOCK SIGNAL> clk_i
-<SET RESET SIGNAL> !rst_ni)
+clock clk_i
+reset -expression (!rst_ni)
 
-# Tool options, run and report proof results
-<SET DESIGN OPTIMIZATION OPTIONS, THREADS AND TIME LIMIT FOR THE PROVE>
+# Get design information to check general complexity
+get_design_info
+
+set_word_level_reduction on
+set_prove_time_limit 72h
+
+set_proofgrid_max_jobs 180
+set_proofgrid_manager on
+autoprove -all -bg
+# Report proof results
+report

@@ -36,10 +36,7 @@ import sys
 from shutil import copyfile
 from datetime import date
 
-#Re-generate TCL script every time we re-run autosva.py
-override_tcl_script = 1
-#Whether to include recursively all the directories 
-#in the DUT path to include those files as possible dependencies
+override_tool_script = 1
 recursive = 0
 
 IN = "--?IN>"
@@ -57,7 +54,6 @@ implications = {}
 signals = {}
 suffixes = {}
 verbose = 0
-# Default names for clock and reset signals if not found on the code parse
 clk_sig = "clk"
 rst_sig = "rst_n"
 prop_filename_backup = ""
@@ -124,7 +120,7 @@ def parse_args():
   parser.add_argument("-as", "--submodule_assert", nargs="+", type=str, default=[], help="List of submodules for which ASSERT the behavior of outgoing transactions.")
   parser.add_argument("-am", "--submodule_assume", nargs="+", type=str, default=[], help="List of submodules for which ASSUME the behavior of outgoing transactions (ASSUME can constrain the DUT).")
   parser.add_argument("-x", "--xprop_macro", nargs="?", type=str, const = "NONE", help="Generate X Propagation assertions, specify argument to create property under <MACRO> (default none)")
-  parser.add_argument("-tool", nargs="?", type=str, const = "sby", help="Backend tool to use [jasper|sby] (default sby)")
+  parser.add_argument("-tool", nargs="?", type=str, const = "jasper", help="Backend tool to use [jasper|sby] (default jasper)")
   parser.add_argument("-v", "--verbose", action='store_true', help="Add verbose output.")
   args = parser.parse_args()
   return args
@@ -837,13 +833,12 @@ def link_submodules(submodule_assert,submodule_assume):
 
 def gen_tcl(dut_root,ft_path, dut_folder, src_list, include, dut_name, dut_name_ext, submodule_assert, submodule_assume):
     global clk_sig, rst_sig
+    sub_filename = ft_path + "manual_sub.vc"
     vc_filename = ft_path + "files.vc"
     tcl_filename = ft_path + "FPV.tcl"
 
-    if (not os.path.exists(tcl_filename) or override_tcl_script):
+    if (not os.path.exists(tcl_filename) or override_tool_script):
         tcl = open(tcl_filename, "w+")
-        tcl.write("# THIS FILE IS A PLACEHOLDER, WHERE YOU WOULD NEED TO INCLUDE THE RIGHT COMMANDS\n")
-        tcl.write("# OF JASPERGOLD ONCE YOU ADQUIRE A LICENSE AND HAVE ACCESS TO THE TOOL DOCUMENTATION\n\n")
         tcl.write("# Set paths to DUT root and FT root (edit if needed)\n")
         tcl.write("set DUT_ROOT "+dut_root+"\n")
         tcl.write("set AUTOSVA_ROOT "+ft_path+"..\n\n")
@@ -856,33 +851,67 @@ def gen_tcl(dut_root,ft_path, dut_folder, src_list, include, dut_name, dut_name_
                 index+=1
         if include: tcl.write("set INC_PATH ${DUT_ROOT}/"+include+"\n")
         tcl.write("set PROP_PATH ${AUTOSVA_ROOT}/ft_"+dut_name+"/sva\n\n")
-        tcl.write("# Include property and RTL files\n")
-        tcl.write("<USE COMMAND TO INCLUDE FILES AT> ${AUTOSVA_ROOT}/ft_"+dut_name+"/files.vc\n\n")
-        tcl.write("# Build design and properties\n")
-        tcl.write("<BUILD USING THIS MODULE AS TOP> " + dut_name + "\n\n")
+        tcl.write("set_elaborate_single_run_mode off\n")
+        tcl.write("set_automatic_library_search on\n")
+        tcl.write("set_analyze_libunboundsearch on\n")
+        tcl.write("set_analyze_librescan on\n")
+        tcl.write("# Analyze property files\n")
+        tcl.write("analyze -clear\n")
+        tcl.write("analyze -sv12 -f ${AUTOSVA_ROOT}/ft_"+dut_name+"/files.vc\n")
+        tcl.write("# Elaborate design and properties\n")
+        tcl.write("elaborate -top " + dut_name + " -bbox_a 131072 -bbox_mul 128 -bbox_mod 64 -create_related_covers {witness precondition} -auto_hr_info\n")
+        tcl.write("#-parameter SOURCES 4\n\n")
         tcl.write("# Set up Clocks and Resets\n")
-        tcl.write("<SET CLOCK SIGNAL> "+clk_sig+"\n")
-        tcl.write("<SET RESET SIGNAL> "+get_reset()+")\n\n")
-        tcl.write("# Tool options, run and report proof results\n")
-        tcl.write("<SET DESIGN OPTIMIZATION OPTIONS, THREADS AND TIME LIMIT FOR THE PROVE>\n")
+        tcl.write("clock "+clk_sig+"\n")
+        tcl.write("reset -expression ("+get_reset()+")\n\n")
+        tcl.write("# Get design information to check general complexity\n")
+        tcl.write("get_design_info\n\n")
+        tcl.write("set_word_level_reduction on\n")
+        tcl.write("set_prove_time_limit 72h\n\n")
+        tcl.write("set_proofgrid_max_jobs 180\n")
+        tcl.write("set_proofgrid_manager on\n")
+        tcl.write("autoprove -all -bg\n")
+        tcl.write("# Report proof results\n")
+        tcl.write("report\n")
         tcl.close()
 
-    if (not os.path.exists(vc_filename) or override_tcl_script):
+    if not os.path.exists(sub_filename):
+        vc = open(sub_filename, "w+")
+        vc.write("// Add here defines if needed\n +define+<MACRO>\n")
+        vc.write("// Add here further dependencies not captured automatically\n")
+        vc.write("//${INC_PATH}/pkg.sv\n")
+        vc.write("//${SRC_PATH}/submodule.sv\n")
+        vc.write("//${DUT_PATH}/submodule.sv\n")
+        vc.write("\n// Or blackbox modules like\n")
+        vc.write("//-bbox_m submodule\n")
+        vc.write("\n// Or add Macros like\n")
+        vc.write("//+define+XPROP=1\n")
+
+    if (not os.path.exists(vc_filename) or override_tool_script):
         vc = open(vc_filename, "w+")
-        vc.write("<ADD RTL FILE EXTENSIONS>\n")
-        vc.write("<INCLUDE>${DUT_PATH}\n")
+        vc.write("+libext+.v\n")
+        vc.write("+libext+.h\n")
+        vc.write("+libext+.sv\n")
+        vc.write("+libext+.tmp.v\n")
+        vc.write("+librescan\n")
+
+        vc.write("+incdir+${DUT_PATH}\n")
+        vc.write("-y ${DUT_PATH}\n")
         if src_list: 
             index = 0
             for src_folder in src_list:
                 string = "SRC_PATH"+str(index)
                 index+=1
-                vc.write("<INCLUDE> ${"+string+"}\n")
+                vc.write("+incdir+${"+string+"}\n")
+                vc.write("-y ${"+string+"}\n")
                 for root, subdirs, files in os.walk(src_folder):
                     if (verbose):  print("--"+string+" = " + root)
-                    vc.write("<INCLUDE> "+root+"\n")
+                    vc.write("-y "+root+"\n")
                        
         if include:
-            vc.write("<INCLUDE>${INC_PATH}\n") 
+            vc.write("+incdir+${INC_PATH}\n") 
+            vc.write("-y ${INC_PATH}\n")
+        vc.write("-f ${PROP_PATH}/../manual_sub.vc\n")
         vc.write("${PROP_PATH}/"+ dut_name + "_prop.sv\n") 
         vc.write("${PROP_PATH}/"+ dut_name + "_bind.svh\n") 
 
