@@ -1,11 +1,16 @@
 ![AutoSVA Logo](/docs/autosva_logo.png?raw=true)
-# AutoSVA
+
+# NEW WORK!
+**Check out our latest [paper](https://parallel.princeton.edu/papers/marcelo_autocc_camera_ready.pdf). AutoCC:** a methodology that leverages FPV to automatically discover covert channels in hardware that is time-shared between processes. AutoCC operates at RTL to exhaustively examine any machine state left by a process after a context switch that creates an execution difference. The AutoCC [github](https://github.com/morenes/AutoCC) contains the artifacts of the papers and the flow generation methodology, based on AutoSVA, enjoy!
+
+
+# AutoSVA Overview
 
 AutoSVA was build with the goal of making Formal Property Verification (FPV) more accesible for hardware designers. AutoSVA brings a simple language to make annotations in the signal declaration section of a module interface. This enables our to generate Formal Testbenches (FT) that check that transactions between hardware RTL modules follow their interface especifications. It does not check full correctness of the design but it automatically generate liveness properties (prevent duplicated responses, prevent requests being dropped) and some safety-relate properties of transactions, like data integrity, transaction invariants, uniqueness, stability... To understand this more fully you can read the [paper](https://arxiv.org/abs/2104.04003). AutoSVA is publised at the 58th ACM/IEEE Design Automation Conference ([DAC'21](https://ieeexplore.ieee.org/document/9586118/)) December 2021.
 
-This [3 minute video](https://mediacentral.princeton.edu/media/AutoSVA%3A%20Democratizing%20Formal%20Verification%20of%20Hardware%20Module%20Interactions%2C%20Marcelo%20Vera%2C%20GS%20(2311653)/1_43nlgm4f) summarizes the approach
+This [3 minute video](https://mediacentral.princeton.edu/media/AutoSVA%3A%20Democratizing%20Formal%20Verification%20of%20Hardware%20Module%20Interactions%2C%20Marcelo%20Vera%2C%20GS%20(2311653)/1_43nlgm4f) summarizes the AutoSVA approach
 
-## Script parameters
+## AutoSVA Script parameters
 
 The AutoSVA tool is based on a Python script, which takes the next arguments
 
