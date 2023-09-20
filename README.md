@@ -10,6 +10,18 @@ AutoSVA was build with the goal of making Formal Property Verification (FPV) mor
 
 This [3 minute video](https://mediacentral.princeton.edu/media/AutoSVA%3A%20Democratizing%20Formal%20Verification%20of%20Hardware%20Module%20Interactions%2C%20Marcelo%20Vera%2C%20GS%20(2311653)/1_43nlgm4f) summarizes the AutoSVA approach
 
+To cite our paper, please use:
+
+    @inproceedings{orenes2021autosva,
+    title={AutoSVA: Democratizing Formal Verification of RTL Module Interactions},
+    author={Orenes-Vera, Marcelo and Manocha, Aninda and Wentzlaff, David and Martonosi, Margaret},
+    booktitle={2021 58th ACM/IEEE Design Automation Conference (DAC)},
+    pages={535--540},
+    year={2021},
+    organization={IEEE}
+    }
+
+
 ## AutoSVA Script parameters
 
 The AutoSVA tool is based on a Python script, which takes the next arguments

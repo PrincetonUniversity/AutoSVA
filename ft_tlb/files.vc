@@ -1,7 +1,15 @@
-<ADD RTL FILE EXTENSIONS>
-<INCLUDE>${DUT_PATH}
-<INCLUDE> ${SRC_PATH0}
-<INCLUDE>${INC_PATH}
++libext+.v
++libext+.h
++libext+.sv
++libext+.tmp.v
++librescan
++incdir+${DUT_PATH}
+-y ${DUT_PATH}
++incdir+${SRC_PATH0}
+-y ${SRC_PATH0}
++incdir+${INC_PATH}
+-y ${INC_PATH}
+-f ${PROP_PATH}/../manual_sub.vc
 ${PROP_PATH}/tlb_prop.sv
 ${PROP_PATH}/tlb_bind.svh
 ${DUT_ROOT}/src/tlb.sv

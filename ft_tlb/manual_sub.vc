@@ -1,0 +1,12 @@
+// Add here defines if needed
+ +define+<MACRO>
+// Add here further dependencies not captured automatically
+${INC_PATH}/riscv_pkg.sv
+${SRC_PATH0}/dm_pkg.sv
+${INC_PATH}/ariane_pkg.sv
+
+// Or blackbox modules like
+//-bbox_m submodule
+
+// Or add Macros like
+//+define+XPROP=1

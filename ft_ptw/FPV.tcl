@@ -1,4 +1,4 @@
-# Set paths to DUT root and FT root (edit if needed)
+# Set paths to DUT root and FT root (based on environment variables)
 set AUTOSVA_ROOT $env(AUTOSVA_ROOT)
 set DUT_ROOT $env(DUT_ROOT)
 
@@ -16,9 +16,7 @@ set_analyze_librescan on
 analyze -clear
 analyze -sv12 -f ${AUTOSVA_ROOT}/ft_ptw/files.vc
 # Elaborate design and properties
-elaborate -top ptw -bbox_a 131072 -bbox_mul 128 -bbox_mod 64 -create_related_covers {witness precondition} -auto_hr_info
-#-parameter SOURCES 4
-
+elaborate -top ptw -create_related_covers {witness precondition} -auto_hr_info
 # Set up Clocks and Resets
 clock clk_i
 reset -expression (!rst_ni)
