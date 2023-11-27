@@ -67,56 +67,59 @@ module fifo
 //==============================================================================
 
 genvar j;
+// Note that the number of fifo slots is always a power of 2
 localparam INFLIGHT = 2**INFLIGHT_IDX;
 
-reg [INFLIGHT    -1:0] buffer_val_r; 
-reg [INFLIGHT_IDX-1:0] buffer_head_r;
-reg [INFLIGHT_IDX-1:0] buffer_tail_r;
-reg [SIZE-1:0] buffer_data_r [INFLIGHT-1:0];
+reg [INFLIGHT    -1:0] buffer_val_reg;
+reg [INFLIGHT_IDX-1:0] buffer_head_reg;
+reg [INFLIGHT_IDX-1:0] buffer_tail_reg;
+reg [SIZE-1:0][INFLIGHT-1:0] buffer_data_reg;
 
-// Hanshake Valid and Response is favorable (1)
+// Hanshake
 wire in_hsk  = in_val && in_rdy;
 wire out_hsk = out_val && out_rdy;
 
 wire [INFLIGHT-1:0] add_buffer;
 wire [INFLIGHT-1:0] clr_buffer;
-assign add_buffer = ({{INFLIGHT-1{1'b0}}, 1'b1} << buffer_head_r) & {INFLIGHT{in_hsk}};
-assign clr_buffer = ({{INFLIGHT-1{1'b0}}, 1'b1} << buffer_tail_r) & {INFLIGHT{out_hsk}};
+assign add_buffer = ({{INFLIGHT-1{1'b0}}, 1'b1} << buffer_head_reg) & {INFLIGHT{in_hsk}};
+assign clr_buffer = ({{INFLIGHT-1{1'b0}}, 1'b1} << buffer_tail_reg) & {INFLIGHT{out_hsk}};
 
 always @(posedge clk) begin
     if (!rst_n) begin
-        buffer_head_r <= {INFLIGHT_IDX{1'b0}};
-        buffer_tail_r <= {INFLIGHT_IDX{1'b0}};
+        buffer_head_reg <= {INFLIGHT_IDX{1'b0}};
+        buffer_tail_reg <= {INFLIGHT_IDX{1'b0}};
     end else begin
+        // The wrap-around is done by ignoring the MSB
         if (in_hsk) begin
-            buffer_head_r <= buffer_head_r + {{INFLIGHT_IDX-1{1'b0}}, 1'b1};
+            buffer_head_reg <= buffer_head_reg + {{INFLIGHT_IDX-1{1'b0}}, 1'b1};
         end
         if (out_hsk) begin
-            buffer_tail_r <= buffer_tail_r + {{INFLIGHT_IDX-1{1'b0}}, 1'b1};
+            buffer_tail_reg <= buffer_tail_reg + {{INFLIGHT_IDX-1{1'b0}}, 1'b1};
         end
-    end //end else
+    end
 end
 
 generate
     for ( j = 0; j < INFLIGHT; j = j + 1) begin: buffers_gen
         always @(posedge clk) begin
+            // Bitmap of the fifo slot that contain valid data.
             if (!rst_n) begin
-              buffer_val_r [j] <= 1'b0;
+              buffer_val_reg [j] <= 1'b0;
             end else begin
-              buffer_val_r[j] <= add_buffer[j] || buffer_val_r[j] && !clr_buffer[j];
+              buffer_val_reg[j] <= add_buffer[j] || buffer_val_reg[j] && !clr_buffer[j];
             end
         end
 
         always @(posedge clk) begin
             if (add_buffer[j]) begin
-                buffer_data_r[j] <= in_data;
+                buffer_data_reg[j] <= in_data;
             end 
         end
     end
 endgenerate
 
-assign out_data = buffer_data_r[buffer_tail_r];
-assign out_val  = |buffer_val_r;
-assign in_rdy  = !(&buffer_val_r);
+assign out_data = buffer_data_reg[buffer_tail_reg];
+assign out_val  = |buffer_val_reg;
+assign in_rdy  = !(&buffer_val_reg);
 
 endmodule
