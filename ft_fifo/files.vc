@@ -1,0 +1,11 @@
++libext+.v
++libext+.h
++libext+.sv
++libext+.tmp.v
++librescan
++incdir+${DUT_PATH}
+-y ${DUT_PATH}
+-f ${PROP_PATH}/../manual_sub.vc
+${PROP_PATH}/fifo_prop.sv
+${PROP_PATH}/fifo_bind.svh
+${DUT_ROOT}/fifo.v

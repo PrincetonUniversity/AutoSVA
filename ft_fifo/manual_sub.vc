@@ -1,0 +1,12 @@
+// Add here defines if needed
+ +define+<MACRO>
+// Add here further dependencies not captured automatically
+//${INC_PATH}/pkg.sv
+//${SRC_PATH}/submodule.sv
+//${DUT_PATH}/submodule.sv
+
+// Or blackbox modules like
+//-bbox_m submodule
+
+// Or add Macros like
+//+define+XPROP=1

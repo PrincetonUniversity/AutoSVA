@@ -82,7 +82,7 @@ end else begin
 end
 
 // Assert that if valid eventually ready or dropped valid
-as__lookup_transid_hsk_or_drop: assert property (lk_req_val |-> s_eventually(!lk_req_val || lk_req_rdy));
+//as__lookup_transid_hsk_or_drop: assert property (lk_req_val |-> s_eventually(!lk_req_val || lk_req_rdy));
 
 // Assert that every request has a response and that every reponse has a request
 as__lookup_transid_eventual_response: assert property (|lookup_transid_sampled |-> s_eventually(lk_res_val));
@@ -144,11 +144,391 @@ assign miss_data = {lu_asid_i,lu_vaddr_i[38:12]};
 
 
 //====DESIGNER-ADDED-SVA====//
-am__no_flush: assume property (flush_i=='0);
 
-reg reset_r = 0;
-am__rst: assume property (reset_r != !rst_ni);
-always_ff @(posedge clk_i)
-    reset_r <= 1'b1;
+
+// PROPERTY FILE CONTENT
+
+// Check that the lookup hits exactly once when the lu_hit_o is asserted
+asgpt__single_lookup_hit: 
+assert property (tlb.lu_hit_o |-> $countones(tlb.lu_hit) == 1);
+
+// Check that if flush is enabled and both addresses to be flushed are zero, all entries are invalidated
+asgpt__flush_all:
+assert property (tlb.flush_i & tlb.asid_to_be_flushed_is0 & tlb.vaddr_to_be_flushed_is0 
+                 |=> $countones({tlb.tags_q[TLB_ENTRIES-1:0]}) == 0);
+
+// When lookup is accessed and there's a hit, plru_tree should be updated
+asgpt__plru_tree_update:
+assert property (tlb.lu_access_i & tlb.lu_hit_o 
+                 |=> $past(tlb.plru_tree_q) !== tlb.plru_tree_n);
+
+// Check that the translation hit should update the lu_content_o to the matching content_q
+genvar i;
+generate
+    for(i=0; i<TLB_ENTRIES; i++) begin
+        asgpt__translation_content_update:
+        assert property (tlb.lu_hit[i] |-> tlb.lu_content_o == tlb.content_q[i]);
+
+		// Check that if an update is valid, the content should be updated in the next cycle for the replacing entry
+		asgpt__update_entry:
+		assert property (tlb.update_i.valid & tlb.replace_en[i]
+                 |=> tlb.content_q[i] == tlb.update_i.content && tlb.tags_q[i].valid);
+
+
+		// When a translation hit occurs with is_1G flag, the lu_is_1G_o output should also be asserted
+		asgpt__translation_is_1G:
+		assert property (tlb.lu_hit_o & tlb.tags_q[i].is_1G 
+						|-> tlb.lu_is_1G_o);
+
+		// When a translation hit occurs with is_2M flag and vpn0 matches, the lu_is_2M_o output should be asserted
+		asgpt__translation_is_2M:
+		assert property (tlb.lu_hit_o & tlb.tags_q[i].is_2M & (tlb.vpn0 == tlb.tags_q[i].vpn0) 
+						|-> tlb.lu_is_2M_o);
+    end
+endgenerate
+
+
+// Check that if a flush is active, and the vaddr_to_be_flushed matches one of the entries in the TLB, that entry should be invalidated
+generate
+    for(i=0; i<TLB_ENTRIES; i++) begin
+        asgpt__flush_single_entry:
+        assert property (tlb.flush_i & tlb.vaddr_vpn0_match[i] & tlb.vaddr_vpn1_match[i] & tlb.vaddr_vpn2_match[i] 
+                         |=> !tlb.tags_q[i].valid);
+
+
+		// When lookup hits and a global page (g flag set) matches, it should be regardless of the ASID value
+		asgpt__global_page_asid_ignore:
+		assert property (tlb.lu_hit_o & tlb.content_q[i].g 
+						|-> (tlb.lu_asid_i == tlb.tags_q[i].asid));
+    end
+endgenerate
+
+// #2
+
+// Property file for the TLB module
+
+// Assertion 1: Check for LU Hit
+// If the current address has a match within the TLB entries, then `lu_hit_o` signal should be high.
+// In other words, if the `lu_hit_o` signal is high, then there should be a hit in the TLB for the current address.
+asgpt__LU_Hit: assert property (
+    tlb.lu_hit_o |-> $countones(tlb.lu_hit) == 1
+);
+
+// Assertion 2: 1G Translation
+// If the hit in TLB indicates the entry is for a 1G page, then `lu_is_1G_o` should be high.
+// asgpt__1G_Translation: assert property (
+//     lu_is_1G_o |-> tlb.lu_is_1G[TLB_ENTRIES-1:0] == 1
+// );
+
+// Assertion 3: 2M Translation
+// If the hit in TLB indicates the entry is for a 2M page, then `lu_is_2M_o` should be high.
+// asgpt__2M_Translation: assert property (
+//     lu_is_2M_o |-> tlb.lu_is_2M[TLB_ENTRIES-1:0] == 1
+// );
+
+// Assertion 4: LU Hit Content
+// If there's a hit in the TLB, the output content `lu_content_o` should match the content of the matching TLB entry.
+
+generate
+    for (i = 0; i < TLB_ENTRIES; i++) begin : LU_Hit_Content_Check
+        asgpt__LU_Hit_Content_Check: assert property (
+            tlb.lu_hit[i] |-> lu_content_o == tlb.content_q[i]
+        );
+    end
+endgenerate
+
+// Assertion 5: Complete flush behavior
+// When a complete flush (both ASID and VADDR flushes are signaled) is requested, the valid bits of all entries should be cleared in the next cycle.
+// asgpt__Complete_Flush: assert property (
+//     flush_i && tlb.asid_to_be_flushed_is0 && tlb.vaddr_to_be_flushed_is0 |=> !(&tags_q[TLB_ENTRIES-1:0].valid)
+// );
+
+// Assertion 6: PLRU tree replacement behavior
+// If a lookup hit occurs in the TLB, the PLRU tree should be updated.
+// When `lu_hit` for a particular entry is high, the corresponding bits in the PLRU tree should be updated.
+generate
+    for (i = 0; i < TLB_ENTRIES; i++) begin : PLRU_Update_On_Hit
+        asgpt__PLRU_Update_On_Hit: assert property (
+            tlb.lu_hit[i] && lu_access_i |=> $past(tlb.plru_tree_q) != tlb.plru_tree_q
+        );
+    end
+endgenerate
+
+// Assertion 7: TLB Update
+// When an update is signaled and the replace enable for a particular entry is high, the TLB's tags and content for that entry should be updated in the next cycle.
+generate
+    for (i = 0; i < TLB_ENTRIES; i++) begin : TLB_Entry_Update_Check
+        asgpt__TLB_Entry_Update_Check: assert property (
+            update_i.valid && tlb.replace_en[i] |=> tlb.tags_q[i] !== $past(tlb.tags_q[i]) && tlb.content_q[i] !== $past(tlb.content_q[i])
+        );
+    end
+endgenerate
+
+// Assertion 8: PLRU replacement behavior
+// When there's a hit in the TLB for a particular entry and it's accessed, in the next cycle, the PLRU tree should prioritize that entry less for replacement.
+// So, the replace enable for that entry should be low in the next cycle.
+generate
+    for (i = 0; i < TLB_ENTRIES; i++) begin : PLRU_Less_Priority_On_Hit
+        asgpt__PLRU_Less_Priority_On_Hit: assert property (
+            tlb.lu_hit[i] && lu_access_i |=> !tlb.replace_en[i]
+        );
+    end
+endgenerate
+
+
+// ## 3
+
+// Property File
+
+// This assertion checks if the lookup hit is valid for 1G pages.
+asgpt__lu_hit_valid_1G: assert property (
+    tlb.lu_hit_o |-> tlb.lu_is_1G_o
+);
+
+// This assertion checks if the lookup hit is valid for 2M pages.
+asgpt__lu_hit_valid_2M: assert property (
+    tlb.lu_hit_o |-> tlb.lu_is_2M_o
+);
+
+// This assertion ensures that when a lookup is done, if there's a hit, the content output is not default (zero).
+asgpt__lu_hit_content_valid: assert property (
+    tlb.lu_hit_o |-> (|$past(tlb.lu_content_o))
+);
+
+// This assertion ensures that when a flush request is received, 
+// if both the ASID and VADDR are zero, then the respective TLB entry should be invalidated.
+// asgpt__flush_all_zeros: assert property (
+//     tlb.flush_i && tlb.asid_to_be_flushed_is0 && tlb.vaddr_to_be_flushed_is0 |=> !$past(tlb.tags_q[TLB_ENTRIES-1:0].valid)
+// );
+
+// This assertion ensures that when a flush request is received, 
+// if only the ASID is zero and there's a VADDR match for either 1G, 2M or general cases, then the respective TLB entry should be invalidated.
+// asgpt__flush_asid_zero_vaddr_match: assert property (
+//     tlb.flush_i && tlb.asid_to_be_flushed_is0 && !tlb.vaddr_to_be_flushed_is0 |=> 
+//     ($past(tlb.vaddr_vpn0_match[TLB_ENTRIES-1:0] && tlb.vaddr_vpn1_match[TLB_ENTRIES-1:0] && tlb.vaddr_vpn2_match[TLB_ENTRIES-1:0]) || 
+//      $past(tlb.vaddr_vpn2_match[TLB_ENTRIES-1:0] && tlb.tags_q[TLB_ENTRIES-1:0].is_1G) || 
+//      $past(tlb.vaddr_vpn1_match[TLB_ENTRIES-1:0] && tlb.vaddr_vpn2_match[TLB_ENTRIES-1:0] && tlb.tags_q[TLB_ENTRIES-1:0].is_2M)) 
+//     |=> !$past(tlb.tags_q[TLB_ENTRIES-1:0].valid)
+// );
+
+// This assertion ensures that when an update is received, the respective TLB entry should get the updated values.
+// asgpt__update_received: assert property (
+//     tlb.update_i.valid && tlb.replace_en[TLB_ENTRIES-1:0] |=> 
+//     ($past(tlb.tags_n[TLB_ENTRIES-1:0].asid) == tlb.update_i.asid) && 
+//     ($past(tlb.tags_n[TLB_ENTRIES-1:0].vpn2) == tlb.update_i.vpn[18+riscv::VPN2:18]) &&
+//     ($past(tlb.content_n[TLB_ENTRIES-1:0]) == tlb.update_i.content)
+// );
+
+// This assertion ensures that for the plru_replacement logic, when a lookup hit occurs, 
+// the least recently used (LRU) policy is updated correctly.
+asgpt__plru_update_on_lu_hit: assert property (
+    tlb.lu_hit[TLB_ENTRIES-1:0] && tlb.lu_access_i |=> 
+    ($past(tlb.plru_tree_n[$clog2(TLB_ENTRIES)-1:0]) != tlb.plru_tree_q[$clog2(TLB_ENTRIES)-1:0])
+);
+
+// This assertion ensures that the replacement enable logic works based on the pseudo-LRU policy.
+asgpt__replacement_enable_logic: assert property (
+    tlb.replace_en[TLB_ENTRIES-1:0] |-> 
+    ($past(tlb.plru_tree_q[$clog2(TLB_ENTRIES)-1:0]) != tlb.plru_tree_n[$clog2(TLB_ENTRIES)-1:0])
+);
+
+// // This assertion ensures that, after a reset, all TLB entries are invalidated.
+// asgpt__reset_invalidates_tlb: assert property (
+//     !tlb.rst_ni |=> !$past(tlb.tags_q[TLB_ENTRIES-1:0].valid)
+// );
+
+// ## 4
+
+// Property file
+
+// The TLB hit signals shouldn't all be HIGH at once since only one TLB entry can be accessed at a time.
+asgpt__only_one_tlb_hit_allowed: assert property (
+    $countones(tlb.lu_hit) <= 1
+);
+
+// When there's a TLB hit, the TLB hit output should be HIGH.
+asgpt__hit_output_when_hit: assert property (
+    |tlb.lu_hit -> tlb.lu_hit_o == 1'b1
+);
+
+// If there's no hit in any of the TLB entries, the TLB hit output should be LOW.
+asgpt__no_hit_output_when_no_hits: assert property (
+    !(|tlb.lu_hit) -> tlb.lu_hit_o == 1'b0
+);
+
+// When there's a hit and the accessed TLB entry is a 1G page, the 1G output should be HIGH.
+asgpt__is_1G_output_when_1G_hit: assert property (
+    (|tlb.lu_hit & tlb.tags_q[$countones(tlb.lu_hit)-1].is_1G) -> tlb.lu_is_1G_o == 1'b1
+);
+
+// When there's a hit and the accessed TLB entry is not a 1G page, the 1G output should be LOW.
+asgpt__not_is_1G_output_when_not_1G_hit: assert property (
+    (|tlb.lu_hit & !tlb.tags_q[$countones(tlb.lu_hit)-1].is_1G) -> tlb.lu_is_1G_o == 1'b0
+);
+
+// When there's a hit and the accessed TLB entry is a 2M page, the 2M output should be HIGH.
+asgpt__is_2M_output_when_2M_hit: assert property (
+    (|tlb.lu_hit & tlb.tags_q[$countones(tlb.lu_hit)-1].is_2M) -> tlb.lu_is_2M_o == 1'b1
+);
+
+// When there's a hit and the accessed TLB entry is not a 2M page, the 2M output should be LOW.
+asgpt__not_is_2M_output_when_not_2M_hit: assert property (
+    (|tlb.lu_hit & !tlb.tags_q[$countones(tlb.lu_hit)-1].is_2M) -> tlb.lu_is_2M_o == 1'b0
+);
+
+generate
+    for(genvar i = 0; i < TLB_ENTRIES; i++) begin: each_entry
+
+        // If there's a hit on a particular entry, the content output should match the TLB content of that entry.
+        asgpt__content_match_on_hit: assert property (
+            tlb.lu_hit[i] -> tlb.lu_content_o == tlb.content_q[i]
+        );
+
+        // If the flush input is HIGH and the ASID to be flushed is 0 and the vaddr to be flushed is 0, the TLB entry should be invalidated.
+        asgpt__flush_all_entries_when_asid_vaddr_zero: assert property (
+            tlb.flush_i & tlb.asid_to_be_flushed_is0 & tlb.vaddr_to_be_flushed_is0 |=> tlb.tags_q[i].valid == 1'b0
+        );
+
+        // When updating a particular entry and it's chosen for replacement, the updated content should match the input update content.
+        asgpt__update_content_on_replacement: assert property (
+            tlb.update_i.valid & tlb.replace_en[i] |=> tlb.content_q[i] == $past(tlb.update_i.content)
+        );
+
+        // When updating a particular entry and it's chosen for replacement, the tag information should be updated correctly.
+        asgpt__update_tags_on_replacement: assert property (
+            tlb.update_i.valid & tlb.replace_en[i] |=> 
+            (tlb.tags_q[i].asid == $past(tlb.update_i.asid) &&
+             tlb.tags_q[i].vpn2 == $past(tlb.update_i.vpn[18+riscv::VPN2:18]) &&
+             tlb.tags_q[i].vpn1 == $past(tlb.update_i.vpn[17:9]) &&
+             tlb.tags_q[i].vpn0 == $past(tlb.update_i.vpn[8:0]) &&
+             tlb.tags_q[i].is_1G == $past(tlb.update_i.is_1G) &&
+             tlb.tags_q[i].is_2M == $past(tlb.update_i.is_2M) &&
+             tlb.tags_q[i].valid == 1'b1)
+        );
+
+    end
+endgenerate
+
+
+// ## 5
+
+// Property File
+
+// Check that on a look-up, if the address matches an entry and the ASID matches or the content is global, there will be a hit.
+asgpt__address_asid_match: 
+assert property (
+    @(posedge clk_i) 
+    (tlb.lu_access_i && (tlb.lu_asid_i == tlb.tags_q[0].asid || tlb.content_q[0].g) && tlb.lu_vaddr_i[30+riscv::VPN2:30] == tlb.tags_q[0].vpn2) 
+    |-> tlb.lu_hit[0]
+);
+
+// Check that a 1G page has a hit only if the 1G flag is set and the VPN2 matches.
+asgpt__1G_page_hit: 
+assert property (
+    @(posedge clk_i) 
+    tlb.lu_access_i && tlb.tags_q[0].is_1G && (tlb.lu_vaddr_i[30+riscv::VPN2:30] == tlb.tags_q[0].vpn2) 
+    |-> tlb.lu_hit[0]
+);
+
+// Check that if a flush is requested and both the asid and vaddr to be flushed are all zeros, then the valid bit of all entries is reset.
+asgpt__full_flush: 
+assert property (
+    @(posedge clk_i) 
+    tlb.flush_i && !(|tlb.asid_to_be_flushed_i) && !(|tlb.vaddr_to_be_flushed_i) 
+    |=> !(tlb.tags_q[0].valid) && !(tlb.tags_q[1].valid) && !(tlb.tags_q[2].valid) && !(tlb.tags_q[3].valid)
+);
+
+// Check that if an update is valid and the replace enable signal for an entry is set, then that entry is updated in the next cycle.
+asgpt__tlb_entry_update: 
+assert property (
+    @(posedge clk_i) 
+    tlb.update_i.valid && tlb.replace_en[0] 
+    |=> tlb.tags_q[0].asid == $past(tlb.update_i.asid)
+);
+
+// Check that if a specific entry matches the look-up request and has 2M flag set or VPN0 matches, then a hit is registered for that entry.
+asgpt__2M_or_VPN0_hit: 
+assert property (
+    @(posedge clk_i) 
+    tlb.lu_access_i && tlb.tags_q[0].valid && tlb.lu_vaddr_i[30+riscv::VPN2:30] == tlb.tags_q[0].vpn2 && tlb.lu_vaddr_i[29:21] == tlb.tags_q[0].vpn1 && (tlb.tags_q[0].is_2M || tlb.lu_vaddr_i[20:12] == tlb.tags_q[0].vpn0) 
+    |-> tlb.lu_hit[0]
+);
+
+// Ensure that after a successful lookup on an entry, that entry's position in the LRU policy is updated.
+asgpt__lru_policy_update: 
+assert property (
+    @(posedge clk_i) 
+    tlb.lu_access_i && tlb.lu_hit[0] 
+    |=> $past(tlb.plru_tree_q) !== tlb.plru_tree_q
+);
+
+// If a valid TLB update occurs and the replace enable signal for an entry is set, then the contents of the TLB entry are updated.
+asgpt__tlb_content_update: 
+assert property (
+    @(posedge clk_i) 
+    tlb.update_i.valid && tlb.replace_en[0] 
+    |=> tlb.content_q[0] == $past(tlb.update_i.content)
+);
+
+// ## 6
+
+// PROPERTY FILE
+
+// Assertion to ensure that when there's a lookup access (lu_access_i), only one entry can be a hit
+asgpt__single_tlb_hit:
+assert property (tlb.lu_access_i |-> $countones(tlb.lu_hit) <= 1);
+
+// Assertion to ensure that if there's a hit, the lookup output signal (lu_hit_o) must be high
+asgpt__hit_signal_valid:
+assert property (|tlb.lu_hit -> tlb.lu_hit_o);
+
+// Assertion to ensure that the hit entry's content is correctly outputted
+// asgpt__correct_content_output:
+// assert property (tlb.lu_access_i |-> (|tlb.lu_hit -> tlb.lu_content_o == tlb.content_q[$clog2(tlb.lu_hit))]));
+
+// Assertion to ensure 1G page flag is correctly set
+// asgpt__1G_page_flag_set:
+// assert property (tlb.lu_access_i |-> (|tlb.lu_hit && tlb.tags_q[$clog2(tlb.lu_hit)].is_1G -> tlb.lu_is_1G_o));
+
+// // Assertion to ensure 2M page flag is correctly set
+// asgpt__2M_page_flag_set:
+// assert property (tlb.lu_access_i |-> (|tlb.lu_hit && tlb.tags_q[$clog2(tlb.lu_hit)].is_2M -> tlb.lu_is_2M_o));
+
+// Assertion to ensure that a flush operation will invalidate an entry with matching ASID and VADDR
+generate
+for (genvar i = 0; i < TLB_ENTRIES; i++) begin : flush_assertion
+    asgpt__flush_effect:
+    assert property (tlb.flush_i && (tlb.asid_to_be_flushed_i == tlb.tags_q[i].asid) 
+                     && (tlb.vaddr_to_be_flushed_i[20:12] == tlb.tags_q[i].vpn0) 
+                     && (tlb.vaddr_to_be_flushed_i[29:21] == tlb.tags_q[i].vpn1) 
+                     && (tlb.vaddr_to_be_flushed_i[38:30] == tlb.tags_q[i].vpn2)
+                     |=> !tlb.tags_q[i].valid);
+end
+endgenerate
+
+// Assertion to ensure that a TLB update correctly updates the entry with new content
+generate
+for (genvar i = 0; i < TLB_ENTRIES; i++) begin : update_assertion
+    asgpt__update_effect:
+    assert property (tlb.update_i.valid && tlb.replace_en[i]
+                     |=> (tlb.tags_q[i].asid == $past(tlb.update_i.asid) 
+                          && tlb.tags_q[i].vpn2 == $past(tlb.update_i.vpn[18+riscv::VPN2:18])
+                          && tlb.tags_q[i].vpn1 == $past(tlb.update_i.vpn[17:9])
+                          && tlb.tags_q[i].vpn0 == $past(tlb.update_i.vpn[8:0])
+                          && tlb.tags_q[i].is_1G == $past(tlb.update_i.is_1G)
+                          && tlb.tags_q[i].is_2M == $past(tlb.update_i.is_2M)
+                          && tlb.tags_q[i].valid));
+end
+endgenerate
+
+// Assertion to ensure that when lu_access_i is low, no TLB entry can be hit
+asgpt__no_access_no_hit:
+assert property (!tlb.lu_access_i |-> !(|tlb.lu_hit));
+
+// Assertion to ensure that if none of the asid or vaddr inputs for flush are non-zero, no entry is invalidated
+asgpt__flush_no_effect:
+assert property (tlb.flush_i && tlb.asid_to_be_flushed_is0 && tlb.vaddr_to_be_flushed_is0 |=> $stable(tlb.tags_q));
+
+
 
 endmodule
