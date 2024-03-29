@@ -1,4 +1,4 @@
-# Set paths to DUT root and FT root (edit if needed)
+# Set paths to DUT root and FT root (based on environment variables)
 set AUTOSVA_ROOT $env(AUTOSVA_ROOT)
 set DUT_ROOT $env(DUT_ROOT)
 
@@ -15,7 +15,6 @@ analyze -clear
 analyze -sv12 -f ${AUTOSVA_ROOT}/ft_fifo/files.vc
 # Elaborate design and properties
 elaborate -top fifo -create_related_covers {witness precondition} -auto_hr_info
-
 # Set up Clocks and Resets
 clock clk
 reset -expression (!rst_n)

@@ -48,7 +48,7 @@ The AutoSVA tool is based on a Python script, which takes the next arguments
 
 For example:
 
-    python autosva.py -f <DUT_PATH/DUT_NAME.v> -v 1 -src <SRC_PATH> -i <INCLUDE_PATH>
+    python autosva.py -f <DUT_PATH/DUT_NAME.v> -v -src <SRC_PATH> -i <INCLUDE_PATH>
 
 You can set the flag -v to generate the verbose output and see the parsing process
 
@@ -96,9 +96,11 @@ C. If the RTL needs some defines to be set, do so also by appending "read -defin
     
 
 ## Quickstart tutorial. Reproduce the steps.
+
 In the [14 minute Youtube tutorial](https://www.youtube.com/watch?v=Gb5wT1D7dxU) we create a Formal Property Verification (FPV) testbench for a FIFO queue. We show step by step how to generate it by adding 3 lines of code of annotations and simply pressing the play button. **Our transaction abstraction is applicable to many more modules, and out explicit annotations provide flexibility of names and interface styles, e.g. we support annotating when interfaces use structs, or when transactions do not seem obvious at first.**
     
 ### Commands used
+
     export DUT_ROOT=$PWD/quickstart 
     export AUTOSVA_ROOT=$PWD
     
@@ -106,18 +108,22 @@ In the [14 minute Youtube tutorial](https://www.youtube.com/watch?v=Gb5wT1D7dxU)
     
      /*AUTOSVA 
      fifo: in -IN> out
-     [INFLIGHT_IDX-1:0] in_transid = fifo.buffer_head_r
-     [INFLIGHT_IDX-1:0] out_transid = fifo.buffer_tail_r
+     [INFLIGHT_IDX-1:0] in_transid = fifo.buffer_head_reg
+     [INFLIGHT_IDX-1:0] out_transid = fifo.buffer_tail_reg
      */
  
  Then we run the autosva tool, what will generate the formal testbench called 'ft_fifo':
     
-     python autosva.py -f fifo.v -x XPROP -tool sby
+     python autosva.py -f fifo.v -x XPROP -tool sby      #For SymbiYosys
+     python autosva.py -f fifo.v -x XPROP -tool jasper   #For JasperGold
+
+(To target JasperGold, use -tool jasper instead of -tool sby)
     
- Then we run the formal property verification tool, in this case SBY. We use the run script to run the fifo FT
+ Then we run the formal property verification tool. We use the run script to run the fifo FT
     
-     ./run.sh fifo
+     source run_sby.sh fifo   #For SymbiYosys
+     source run_jg.sh fifo    #For JasperGold
     
- To watch the waveforms of a Counterexample (CEX) we used 
+ To watch the waveforms of a Counterexample (CEX) in SBY we use
     
      gtkwave ft_fifo/FPV_prv/engine_0/trace.vcd &

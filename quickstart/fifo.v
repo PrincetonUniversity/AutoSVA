@@ -50,8 +50,8 @@ module fifo
     input  wire                          rst_n,
     /*AUTOSVA
     fifo: in -IN> out
-    [INFLIGHT_IDX-1:0] in_transid = fifo.buffer_head_r
-    [INFLIGHT_IDX-1:0] out_transid = fifo.buffer_tail_r
+    [INFLIGHT_IDX-1:0] in_transid = fifo.buffer_head_reg
+    [INFLIGHT_IDX-1:0] out_transid = fifo.buffer_tail_reg
     */
     input  wire                          in_val,
     output wire                          in_rdy,
